@@ -4,7 +4,7 @@ use bevy::{
     input::mouse::MouseMotion,
     log::{error, warn},
     prelude::*,
-    window::{CursorGrabMode, PrimaryWindow},
+    window::{CursorGrabMode, CursorOptions, PrimaryWindow},
 };
 
 /// A marker `Component` for spectating cameras.
@@ -65,7 +65,7 @@ fn spectator_update(
     buttons: Res<ButtonInput<MouseButton>>,
     mut motion: EventReader<MouseMotion>,
     mut settings: ResMut<SpectatorSettings>,
-    mut windows: Query<(&mut Window, Option<&PrimaryWindow>)>,
+    mut windows: Query<(&mut Window, &mut CursorOptions, Option<&PrimaryWindow>)>,
     mut camera_transforms: Query<&mut Transform, With<Spectator>>,
     mut focus: Local<bool>,
 ) {
@@ -81,24 +81,24 @@ fn spectator_update(
         return;
     };
 
-    let mut window = match settings.active_window {
+    let (mut window, mut cursor_opt) = match settings.active_window {
         Some(active) => {
-            let Ok((window, _)) = windows.get_mut(active) else {
+            let Ok((window, cursor_opt, _)) = windows.get_mut(active) else {
                 error!("Failed to find active window ({active:?})");
                 settings.active_window = None;
                 motion.clear();
                 return;
             };
 
-            window
+            (window, cursor_opt)
         }
         None => {
-            let Some((window, _)) = windows.iter_mut().find(|(_, primary)| primary.is_some())
+            let Some((window, cursor_opt, _)) = windows.iter_mut().find(|(_, _, primary)| primary.is_some())
             else {
                 panic!("No primary window found!");
             };
 
-            window
+            (window, cursor_opt)
         }
     };
 
@@ -109,8 +109,8 @@ fn spectator_update(
                 true => CursorGrabMode::Confined,
                 false => CursorGrabMode::None,
             };
-            window.cursor_options.grab_mode = grab_mode;
-            window.cursor_options.visible = !focused;
+            cursor_opt.grab_mode = grab_mode;
+            cursor_opt.visible = !focused;
         }
     };
 
